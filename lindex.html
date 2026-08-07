@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Mercadinho Pro - Aprendendo Finanças</title>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&family=Plus+Jakarta+Sans:wght@600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #10B981;
+            --primary-dark: #059669;
+            --accent: #FFB800;
+            --bg-app: #F1F5F9;
+            --card-bg: #FFFFFF;
+            --text-main: #1E293B;
+            --text-muted: #64748B;
+            --shadow-soft: 0 12px 32px rgba(0,0,0,0.08);
+            --border-radius: 20px;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background: #0F172A;
+            background-image: radial-gradient(#1E293B 1px, transparent 1px);
+            background-size: 20px 20px;
+            color: var(--text-main);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 8px;
+            overflow: hidden;
+        }
+
+        #confetti-canvas {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Container Principal */
+        .app-shell {
+            background: var(--bg-app);
+            width: 100%;
+            max-width: 410px;
+            height: 98vh;
+            max-height: 840px;
+            border-radius: 28px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            padding: 14px;
+            gap: 8px;
+            position: relative;
+            justify-content: space-between;
+        }
+
+        /* Top Header */
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .brand-badge {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.1rem;
+            color: #4F46E5;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stats-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        .chip-stat {
+            background: var(--card-bg);
+            padding: 6px 10px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: 800;
+            color: var(--text-main);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        /* Produto & Balcão */
+        .store-display {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 10px;
+            text-align: center;
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            border: 2px solid #E2E8F0;
+            cursor: pointer;
+        }
+
+        .difficulty-tag {
+            position: absolute;
+            top: 10px;
+            right: 12px;
+            font-size: 0.65rem;
+            font-weight: 800;
+            padding: 2px 8px;
+            border-radius: 10px;
+            text-transform: uppercase;
+        }
+
+        .diff-1 { background: #DCFCE7; color: #166534; }
+        .diff-2 { background: #FEF9C3; color: #854D0E; }
+        .diff-3 { background: #FEE2E2; color: #991B1B; }
+
+        .customer-bubble {
+            background: #EEF2FF;
+            color: #4338CA;
+            font-size: 0.75rem;
+            font-weight: 800;
+            padding: 3px 10px;
+            border-radius: 20px;
+            margin-bottom: 4px;
+        }
+
+        .product-hero {
+            font-size: 3.5rem;
+            line-height: 1;
+            margin: 2px 0;
+            filter: drop-shadow(0 8px 12px rgba(0,0,0,0.1));
+            transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .product-name {
+            font-family: 'Fredoka', sans-serif;
+            font-size: 1.1rem;
+            color: var(--text-main);
+        }
+
+        .price-badge {
+            background: #10B981;
+            color: white;
+            font-size: 1.25rem;
+            font-weight: 800;
+            padding: 3px 16px;
+            border-radius: 30px;
+            margin-top: 4px;
+            box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Caixa Registradora / Progresso */
+        .register-box {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 8px 12px;
+            box-shadow: var(--shadow-soft);
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .register-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.75rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .cash-display {
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: #0F172A;
+        }
+
+        .progress-track {
+            height: 8px;
+            background: #E2E8F0;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            height: 100%;
+            width: 0%;
+            background: var(--primary);
+            transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .inserted-notes-container {
+            display: flex;
+            gap: 4px;
+            overflow-x: auto;
+            min-height: 26px;
+            align-items: center;
+            padding: 2px 0;
+        }
+
+        .mini-note {
+            background: #3B82F6;
+            color: white;
+            font-size: 0.7rem;
+            font-weight: 800;
+            padding: 2px 6px;
+            border-radius: 6px;
+            animation: popIn 0.2s ease;
+            white-space: nowrap;
+        }
+
+        @keyframes popIn {
+            0% { transform: scale(0); }
+            100% { transform: scale(1); }
+        }
+
+        /* Teclado de Cédulas Estilizadas */
+        .wallet-label {
+            font-size: 0.7rem;
+            font-weight: 800;
+            color: var(--text-muted);
+            margin-left: 2px;
+            text-transform: uppercase;
+        }
+
+        .notes-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 6px;
+        }
+
+        .bill-btn {
+            border: none;
+            border-radius: 12px;
+            padding: 8px 2px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 3px 6px rgba(0,0,0,0.04);
+            transition: transform 0.1s, box-shadow 0.1s;
+        }
+
+        .bill-btn:active { transform: scale(0.92); }
+
+        /* Estilos das Cédulas e Moedas */
+        .b-025 { background: linear-gradient(135deg, #FEF3C7, #FDE68A); color: #92400E; border: 1.5px solid #F59E0B; }
+        .b-050 { background: linear-gradient(135deg, #E2E8F0, #CBD5E1); color: #334155; border: 1.5px solid #64748B; }
+        .b-1   { background: linear-gradient(135deg, #FEF08A, #CA8A04); color: #713F12; border: 1.5px solid #EAB308; }
+        .b-2   { background: linear-gradient(135deg, #DBEAFE, #93C5FD); color: #1E40AF; border: 1.5px solid #60A5FA; }
+        .b-5   { background: linear-gradient(135deg, #F3E8FF, #D8B4FE); color: #6B21A8; border: 1.5px solid #C084FC; }
+        .b-10  { background: linear-gradient(135deg, #FEE2E2, #FCA5A5); color: #991B1B; border: 1.5px solid #F87171; }
+        .b-20  { background: linear-gradient(135deg, #FEF3C7, #FDE047); color: #854D0E; border: 1.5px solid #FACC15; }
+        .b-50  { background: linear-gradient(135deg, #FFEDD5, #FDBA74); color: #9A3412; border: 1.5px solid #FB923C; }
+
+        .bill-btn .val { font-size: 0.85rem; font-weight: 800; }
+        .bill-btn .type { font-size: 0.55rem; font-weight: 700; opacity: 0.8; }
+
+        /* Botões de Ação */
+        .actions-group {
+            display: grid;
+            grid-template-columns: 1fr 2.2fr;
+            gap: 8px;
+        }
+
+        .btn-action {
+            border: none;
+            border-radius: 16px;
+            padding: 12px;
+            font-size: 0.95rem;
+            font-weight: 800;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+        }
+
+        .btn-clear { background: #E2E8F0; color: #475569; }
+        .btn-pay { background: var(--primary); color: white; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35); }
+
+        /* Cupom Fiscal Overlay */
+        .receipt-modal {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(15, 23, 42, 0.85);
+            border-radius: 28px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+
+        .receipt-modal.active { opacity: 1; pointer-events: auto; }
+
+        .receipt-card {
+            background: #FFFDE7;
+            width: 100%;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.3);
+            font-family: monospace;
+            text-align: center;
+            transform: translateY(-20px);
+            transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        .receipt-modal.active .receipt-card { transform: translateY(0); }
+        .receipt-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 8px; border-bottom: 2px dashed #CBD5E1; padding-bottom: 6px; }
+        .receipt-line { display: flex; justify-content: space-between; margin: 6px 0; font-size: 0.85rem; }
+        .receipt-total { font-size: 1.1rem; font-weight: bold; border-top: 2px dashed #CBD5E1; padding-top: 6px; margin-top: 6px; }
+    </style>
+</head>
+<body>
+
+<canvas id="confetti-canvas"></canvas>
+
+<div class="app-shell">
+    <!-- Top Bar -->
+    <div class="top-bar">
+        <div class="brand-badge">🛒 Mercadinho</div>
+        <div class="stats-group">
+            <div class="chip-stat">⭐ Nível <span id="lvl">1</span></div>
+            <div class="chip-stat">🐷 <span id="piggy">R$ 0,00</span></div>
+        </div>
+    </div>
+
+    <!-- Produto em Destaque -->
+    <div class="store-display" onclick="speakProduct()">
+        <div class="difficulty-tag diff-1" id="diff-tag">Fácil</div>
+        <div class="customer-bubble" id="customer-msg">"Quero comprar este item!"</div>
+        <div class="product-hero" id="p-emoji">🍎</div>
+        <div class="product-name" id="p-title">Maçã Fresca</div>
+        <div class="price-badge">R$ <span id="p-price">2,00</span></div>
+    </div>
+
+    <!-- Caixa Registradora -->
+    <div class="register-box">
+        <div class="register-header">
+            <span>Valor Inserido:</span>
+            <span class="cash-display">R$ <span id="inserted">0,00</span></span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-bar" id="p-bar"></div>
+        </div>
+        <div class="inserted-notes-container" id="notes-history"></div>
+    </div>
+
+    <!-- Carteira / Dinheiro -->
+    <div style="display: flex; flex-direction: column; gap: 4px;">
+        <span class="wallet-label">Toque para adicionar dinheiro:</span>
+        <div class="notes-grid">
+            <button class="bill-btn b-025" onclick="insertCash(0.25)">
+                <span class="val">🪙 0,25</span>
+                <span class="type">Moeda</span>
+            </button>
+            <button class="bill-btn b-050" onclick="insertCash(0.50)">
+                <span class="val">🪙 0,50</span>
+                <span class="type">Moeda</span>
+            </button>
+            <button class="bill-btn b-1" onclick="insertCash(1.00)">
+                <span class="val">🪙 R$ 1</span>
+                <span class="type">Moeda</span>
+            </button>
+            <button class="bill-btn b-2" onclick="insertCash(2.00)">
+                <span class="val">💵 R$ 2</span>
+                <span class="type">Cédula</span>
+            </button>
+            <button class="bill-btn b-5" onclick="insertCash(5.00)">
+                <span class="val">💵 R$ 5</span>
+                <span class="type">Cédula</span>
+            </button>
+            <button class="bill-btn b-10" onclick="insertCash(10.00)">
+                <span class="val">💵 R$ 10</span>
+                <span class="type">Cédula</span>
+            </button>
+            <button class="bill-btn b-20" onclick="insertCash(20.00)">
+                <span class="val">💵 R$ 20</span>
+                <span class="type">Cédula</span>
+            </button>
+            <button class="bill-btn b-50" onclick="insertCash(50.00)">
+                <span class="val">💵 R$ 50</span>
+                <span class="type">Cédula</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Botões de Ação -->
+    <div class="actions-group">
+        <button class="btn-action btn-clear" onclick="resetPayment()">Corrigir</button>
+        <button class="btn-action btn-pay" onclick="processPayment()">PAGAR!</button>
+    </div>
+
+    <!-- Receipt / Cupom Fiscal Overlay -->
+    <div class="receipt-modal" id="receipt-modal">
+        <div class="receipt-card">
+            <div class="receipt-title">MERCADINHO PRO<br><small style="font-weight: normal; font-size: 0.7rem;">Comprovante de Compra</small></div>
+            <div class="receipt-line"><span id="rcp-item">Item</span><span id="rcp-price">R$ 0,00</span></div>
+            <div class="receipt-line"><span>Pago:</span><span id="rcp-paid">R$ 0,00</span></div>
+            <div class="receipt-total"><span>Troco:</span><span id="rcp-change">R$ 0,00</span></div>
+            <div style="margin-top: 10px; font-size: 0.75rem; color: #059669; font-weight: bold;">PRÓXIMO NÍVEL! 🎉</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    /* AMPLIAÇÃO DO CATÁLOGO DE PRODUTOS E DIFICULDADES */
+    const catalog = [
+        // Nível Fácil (1-2) - Valores exatos inteiros
+        { name: "Chup-Chup / Geladinho", emoji: "🧃", price: 1.00, minLvl: 1 },
+        { name: "Maçã Fresca", emoji: "🍎", price: 2.00, minLvl: 1 },
+        { name: "Picolé de Morango", emoji: "🍧", price: 3.00, minLvl: 1 },
+        { name: "Suco de Laranja", emoji: "🧃", price: 4.00, minLvl: 1 },
+        { name: "Sorvete Delícia", emoji: "🍦", price: 5.00, minLvl: 1 },
+        
+        // Nível Médio (3-5) - Introdução de centavos e valores quebrados
+        { name: "Pacote de Pipoca", emoji: "🍿", price: 2.50, minLvl: 3 },
+        { name: "Pirulito Gigante", emoji: "🍭", price: 1.50, minLvl: 3 },
+        { name: "Barra de Chocolate", emoji: "🍫", price: 6.50, minLvl: 3 },
+        { name: "Fatia de Pizza", emoji: "🍕", price: 8.50, minLvl: 4 },
+        { name: "Ursinho Pelúcia", emoji: "🧸", price: 12.00, minLvl: 4 },
+        { name: "Bola de Futebol", emoji: "⚽", price: 15.50, minLvl: 5 },
+        { name: "Livro Infantil", emoji: "📚", price: 18.00, minLvl: 5 },
+
+        // Nível Difícil (6-8) - Produtos caros e combinações complexas
+        { name: "Carrinho Veloz", emoji: "🏎️", price: 25.50, minLvl: 6 },
+        { name: "Bolo de Festa", emoji: "🎂", price: 32.00, minLvl: 6 },
+        { name: "Mochila Escolar", emoji: "🎒", price: 45.50, minLvl: 7 },
+        { name: "Jogo de Tabuleiro", emoji: "🎲", price: 58.00, minLvl: 7 },
+        { name: "Bicicleta Infantil", emoji: "🚲", price: 75.50, minLvl: 8 },
+
+        // Nível Expert (9+) - Desafios de Troco Alto
+        { name: "Videogame Portátil", emoji: "🎮", price: 120.00, minLvl: 9 },
+        { name: "Drone com Câmera", emoji: "🛸", price: 150.50, minLvl: 9 },
+        { name: "Patinete Elétrico", emoji: "🛴", price: 185.00, minLvl: 10 }
+    ];
+
+    let activeProduct = {};
+    let totalInserted = 0;
+    let history = [];
+    let piggyBank = 0;
+    let level = 1;
+    let audioCtx = null;
+
+    function initGame() {
+        loadNextProduct();
+    }
+
+    function loadNextProduct() {
+        // Seleciona o produto apropriado de acordo com o Nível atual do jogador
+        let pool = catalog.filter(p => p.minLvl <= level);
+        if (pool.length === 0) pool = catalog;
+
+        activeProduct = pool[Math.floor(Math.random() * pool.length)];
+
+        document.getElementById('p-emoji').innerText = activeProduct.emoji;
+        document.getElementById('p-title').innerText = activeProduct.name;
+        document.getElementById('p-price').innerText = activeProduct.price.toFixed(2).replace('.', ',');
+
+        // Atualiza a tag de dificuldade
+        const diffTag = document.getElementById('diff-tag');
+        if (activeProduct.minLvl <= 2) {
+            diffTag.innerText = "Fácil";
+            diffTag.className = "difficulty-tag diff-1";
+        } else if (activeProduct.minLvl <= 5) {
+            diffTag.innerText = "Médio";
+            diffTag.className = "difficulty-tag diff-2";
+        } else {
+            diffTag.innerText = "Difícil";
+            diffTag.className = "difficulty-tag diff-3";
+        }
+
+        resetPayment();
+        speakProduct();
+    }
+
+    function insertCash(amount) {
+        playBeep(400 + amount * 10);
+        totalInserted = parseFloat((totalInserted + amount).toFixed(2));
+        history.push(amount);
+        
+        let speechVal = amount < 1 ? `${Math.round(amount * 100)} centavos` : `${amount} reais`;
+        speak(speechVal);
+        updateUI();
+    }
+
+    function resetPayment() {
+        totalInserted = 0;
+        history = [];
+        updateUI();
+    }
+
+    function updateUI() {
+        document.getElementById('inserted').innerText = totalInserted.toFixed(2).replace('.', ',');
+        
+        const histContainer = document.getElementById('notes-history');
+        histContainer.innerHTML = '';
+        history.forEach(val => {
+            const chip = document.createElement('div');
+            chip.className = 'mini-note';
+            let formatted = val < 1 ? `${Math.round(val * 100)}¢` : `R$ ${val}`;
+            chip.innerText = `+${formatted}`;
+            histContainer.appendChild(chip);
+        });
+
+        const pct = Math.min((totalInserted / activeProduct.price) * 100, 100);
+        document.getElementById('p-bar').style.width = `${pct}%`;
+        
+        document.getElementById('lvl').innerText = level;
+        document.getElementById('piggy').innerText = `R$ ${piggyBank.toFixed(2).replace('.', ',')}`;
+    }
+
+    function speakProduct() {
+        let priceStr = activeProduct.price.toFixed(2).replace('.', ' reais e ') + ' centavos';
+        if (activeProduct.price % 1 === 0) {
+            priceStr = `${Math.round(activeProduct.price)} reais`;
+        }
+        speak(`${activeProduct.name}, custa ${priceStr}.`);
+    }
+
+    function speak(text, callback = null) {
+        if (!('speechSynthesis' in window)) {
+            if (callback) callback();
+            return;
+        }
+
+        window.speechSynthesis.cancel();
+        const msg = new SpeechSynthesisUtterance(text);
+        msg.lang = 'pt-BR';
+        msg.rate = 0.95;
+
+        if (callback) {
+            msg.onend = callback;
+            msg.onerror = callback;
+        }
+
+        window.speechSynthesis.speak(msg);
+    }
+
+    function processPayment() {
+        if (totalInserted === 0) {
+            speak("Adicione dinheiro para pagar!");
+            return;
+        }
+
+        if (totalInserted >= activeProduct.price) {
+            const change = parseFloat((totalInserted - activeProduct.price).toFixed(2));
+            piggyBank += activeProduct.price;
+            level++;
+
+            playRegisterSound();
+            fireConfetti();
+
+            document.getElementById('rcp-item').innerText = activeProduct.name;
+            document.getElementById('rcp-price').innerText = `R$ ${activeProduct.price.toFixed(2).replace('.', ',')}`;
+            document.getElementById('rcp-paid').innerText = `R$ ${totalInserted.toFixed(2).replace('.', ',')}`;
+            document.getElementById('rcp-change').innerText = `R$ ${change.toFixed(2).replace('.', ',')}`;
+
+            const modal = document.getElementById('receipt-modal');
+            modal.classList.add('active');
+
+            let speechText = `Muito bem! Pagamento concluído.`;
+            if (change > 0) {
+                speechText += ` Seu troco é de ${change.toFixed(2).replace('.', ' reais e ')} centavos.`;
+            }
+
+            speak(speechText, () => {
+                setTimeout(() => {
+                    modal.classList.remove('active');
+                    loadNextProduct();
+                }, 1200);
+            });
+
+        } else {
+            const needed = (activeProduct.price - totalInserted).toFixed(2).replace('.', ',');
+            speak(`Faltam ${needed} reais. Adicione mais dinheiro!`);
+        }
+    }
+
+    function playBeep(freq) {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = Math.min(freq, 1000);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.08);
+        } catch(e) {}
+    }
+
+    function playRegisterSound() {
+        try {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.25);
+        } catch(e) {}
+    }
+
+    function fireConfetti() {
+        const cvs = document.getElementById('confetti-canvas');
+        const ctx = cvs.getContext('2d');
+        cvs.width = window.innerWidth;
+        cvs.height = window.innerHeight;
+
+        let particles = Array.from({length: 50}, () => ({
+            x: cvs.width / 2, y: cvs.height / 2,
+            vx: (Math.random() - 0.5) * 10,
+            vy: (Math.random() - 0.7) * 10,
+            color: ['#10B981', '#FFB800', '#3B82F6', '#EC4899'][Math.floor(Math.random() * 4)],
+            life: 100
+        }));
+
+        function render() {
+            ctx.clearRect(0,0,cvs.width,cvs.height);
+            let alive = false;
+            particles.forEach(p => {
+                if (p.life > 0) {
+                    alive = true;
+                    p.x += p.vx; p.y += p.vy; p.vy += 0.2; p.life -= 2;
+                    ctx.fillStyle = p.color;
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            });
+            if (alive) requestAnimationFrame(render);
+        }
+        render();
+    }
+
+    window.onload = initGame;
+</script>
+</body>
+</html>
