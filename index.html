@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Meu Livro de Receitas Pro</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    
+    <!-- Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        :root {
+            --primary: #FF6B6B;
+            --primary-dark: #E55A5A;
+            --secondary: #4ECDC4;
+            --bg-color: #F7F9FC;
+            --card-bg: #FFFFFF;
+            --text-main: #2D3436;
+            --text-muted: #636E72;
+            --border: #DFE6E9;
+            --official-tag: #0984E3;
+            --personal-tag: #00B894;
+            --nav-height: 65px;
+            --border-radius: 16px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Poppins', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding-bottom: calc(var(--nav-height) + 20px);
+        }
+
+        header {
+            background: var(--card-bg);
+            padding: 15px 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        h1 { font-size: 1.2rem; font-weight: 600; color: var(--primary); }
+
+        .view { display: none; padding: 20px; animation: fadeIn 0.2s ease; }
+        .view.active { display: block; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .stat-card {
+            background: var(--card-bg);
+            padding: 15px;
+            border-radius: var(--border-radius);
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.03);
+        }
+        .stat-card h3 { font-size: 1.8rem; color: var(--primary); }
+        .stat-card p { font-size: 0.8rem; color: var(--text-muted); }
+
+        /* Recipe Cards */
+        .recipe-list { display: flex; flex-direction: column; gap: 12px; }
+        .recipe-card {
+            background: var(--card-bg);
+            border-radius: var(--border-radius);
+            padding: 12px 15px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            position: relative;
+            overflow: hidden;
+            cursor: pointer;
+        }
+        
+        .recipe-card::before {
+            content: '';
+            position: absolute;
+            left: 0; top: 0; bottom: 0;
+            width: 5px;
+        }
+        .recipe-card.official::before { background-color: var(--official-tag); }
+        .recipe-card.personal::before { background-color: var(--personal-tag); }
+
+        .recipe-info { flex: 1; }
+        .recipe-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
+        .recipe-meta { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; }
+        
+        .badge {
+            font-size: 0.65rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 600;
+            display: inline-block;
+            margin-bottom: 4px;
+        }
+        .badge.official { background: var(--official-tag); }
+        .badge.personal { background: var(--personal-tag); }
+
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: var(--nav-height);
+            background: var(--card-bg);
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.05);
+            z-index: 1000;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: var(--text-muted);
+            font-size: 0.7rem;
+            gap: 2px;
+            cursor: pointer;
+            width: 20%;
+        }
+        .nav-item.active { color: var(--primary); font-weight: 600; }
+        .nav-item i { font-size: 1.4rem; }
+
+        /* Controls */
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 10px;
+            font-weight: 600;
+            width: 100%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-size: 0.9rem;
+        }
+        .btn-secondary { background: var(--border); color: var(--text-main); }
+        .btn-danger { background: #ff7675; color: white; }
+        
+        input, select, textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+            background: var(--bg-color);
+        }
+
+        /* Modal Form */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 2000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .modal-content {
+            background: white;
+            border-radius: var(--border-radius);
+            padding: 20px;
+            max-width: 500px;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1 id="app-title">Meu Livro de Receitas Pro</h1>
+    </header>
+
+    <main>
+        <!-- Dashboard -->
+        <section id="view-home" class="view active">
+            <h2 style="margin-bottom: 12px; font-size: 1.1rem;">Visão Geral</h2>
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <h3 id="stat-official">0</h3>
+                    <p>Oficiais</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="stat-personal">0</h3>
+                    <p>Minhas</p>
+                </div>
+                <div class="stat-card">
+                    <h3 id="stat-favs">0</h3>
+                    <p>Favoritos</p>
+                </div>
+            </div>
+
+            <h3 style="margin-bottom: 10px; font-size: 1rem;">Adicionadas Recentemente</h3>
+            <div class="recipe-list" id="recent-recipes"></div>
+        </section>
+
+        <!-- Receitas Oficiais -->
+        <section id="view-officials" class="view">
+            <h2 style="margin-bottom: 12px; font-size: 1.1rem;">Receitas Oficiais 📚</h2>
+            <input type="text" id="search-officials" placeholder="🔍 Buscar receita oficial..." oninput="renderLists()">
+            <div class="recipe-list" id="list-officials"></div>
+        </section>
+
+        <!-- Minhas Receitas -->
+        <section id="view-mine" class="view">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h2 style="font-size: 1.1rem;">Minhas Receitas 📝</h2>
+                <button class="btn" style="width: auto; padding: 6px 12px;" onclick="openRecipeForm(false)">
+                    <i class="material-icons-round">add</i> Nova
+                </button>
+            </div>
+            <input type="text" id="search-mine" placeholder="🔍 Buscar minha receita..." oninput="renderLists()">
+            <div class="recipe-list" id="list-mine"></div>
+        </section>
+
+        <!-- Favoritos -->
+        <section id="view-favorites" class="view">
+            <h2 style="margin-bottom: 12px; font-size: 1.1rem;">Favoritos ❤️</h2>
+            <div class="recipe-list" id="list-favorites"></div>
+        </section>
+
+        <!-- Ajustes & Administração -->
+        <section id="view-settings" class="view">
+            <h2 style="margin-bottom: 15px; font-size: 1.1rem;">Ajustes ⚙️</h2>
+
+            <div class="stat-card" style="text-align: left; margin-bottom: 15px;">
+                <h4 style="margin-bottom: 8px;">Área Administrativa</h4>
+                <div id="admin-login-area">
+                    <input type="password" id="admin-password" placeholder="Senha do Administrador (Padrão: 1234)">
+                    <button class="btn" onclick="loginAdmin()">Entrar como Admin</button>
+                </div>
+                <div id="admin-panel" style="display: none;">
+                    <p style="color: var(--personal-tag); font-weight: bold; margin-bottom: 10px; font-size: 0.85rem;">✅ Modo Administrador Ativo</p>
+                    <button class="btn" style="margin-bottom: 8px; background: var(--official-tag);" onclick="openRecipeForm(true)">
+                        <i class="material-icons-round">add</i> Nova Receita Oficial
+                    </button>
+                    <button class="btn btn-secondary" onclick="logoutAdmin()">Sair da Administração</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Detalhes da Receita -->
+        <section id="view-detail" class="view">
+            <button class="btn btn-secondary" style="margin-bottom: 15px; width: auto;" onclick="navigate('home')">
+                <i class="material-icons-round">arrow_back</i> Voltar
+            </button>
+            
+            <div>
+                <span id="detail-badge" class="badge"></span>
+                <h2 id="detail-title" style="margin-bottom: 5px;"></h2>
+                <p id="detail-category" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;"></p>
+                <div class="recipe-meta" style="margin-bottom: 15px;">
+                    <span>⏱️ Tempo: <b id="detail-time"></b></span> | 
+                    <span>📊 Rendimento: <b id="detail-yield"></b></span>
+                </div>
+
+                <div id="detail-actions" style="display: flex; gap: 8px; margin-bottom: 20px;"></div>
+
+                <h3 style="margin-bottom: 8px; font-size: 1rem;">Ingredientes</h3>
+                <ul id="detail-ingredients" style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;"></ul>
+
+                <h3 style="margin-bottom: 8px; font-size: 1rem;">Modo de Preparo</h3>
+                <p id="detail-prep" style="line-height: 1.5; color: var(--text-main); white-space: pre-line;"></p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Modal Form (Criar/Editar) -->
+    <div id="modal-form" class="modal">
+        <div class="modal-content">
+            <h3 id="form-title" style="margin-bottom: 12px;">Nova Receita</h3>
+            <input type="hidden" id="form-id">
+            <input type="hidden" id="form-is-official">
+
+            <label style="font-size:0.8rem;">Nome da Receita</label>
+            <input type="text" id="form-name" placeholder="Ex: Bolo de Cenoura">
+
+            <label style="font-size:0.8rem;">Categoria</label>
+            <select id="form-category">
+                <option value="Picolés & Sorvetes">Picolés & Sorvetes</option>
+                <option value="Bolos">Bolos</option>
+                <option value="Doces">Doces</option>
+                <option value="Salgados">Salgados</option>
+                <option value="Pães">Pães</option>
+                <option value="Bebidas">Bebidas</option>
+                <option value="Outros">Outros</option>
+            </select>
+
+            <div style="display: flex; gap: 10px;">
+                <div style="flex:1;">
+                    <label style="font-size:0.8rem;">Tempo</label>
+                    <input type="text" id="form-time" placeholder="Ex: 40 min">
+                </div>
+                <div style="flex:1;">
+                    <label style="font-size:0.8rem;">Rendimento</label>
+                    <input type="text" id="form-yield" placeholder="Ex: 10 porções">
+                </div>
+            </div>
+
+            <label style="font-size:0.8rem;">Ingredientes (Um por linha)</label>
+            <textarea id="form-ingredients" rows="4" placeholder="1000 ml de Água&#10;300 g de Açúcar"></textarea>
+
+            <label style="font-size:0.8rem;">Modo de Preparo</label>
+            <textarea id="form-prep" rows="4" placeholder="Passo a passo da receita..."></textarea>
+
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-secondary" onclick="closeRecipeForm()">Cancelar</button>
+                <button class="btn" onclick="saveRecipe()">Salvar Receita</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Navegação Inferior -->
+    <nav class="bottom-nav">
+        <div class="nav-item active" onclick="navigate('home', this)">
+            <i class="material-icons-round">home</i>
+            <span>Início</span>
+        </div>
+        <div class="nav-item" onclick="navigate('officials', this)">
+            <i class="material-icons-round">menu_book</i>
+            <span>Oficiais</span>
+        </div>
+        <div class="nav-item" onclick="navigate('mine', this)">
+            <i class="material-icons-round">edit_document</i>
+            <span>Minhas</span>
+        </div>
+        <div class="nav-item" onclick="navigate('favorites', this)">
+            <i class="material-icons-round">favorite</i>
+            <span>Favoritos</span>
+        </div>
+        <div class="nav-item" onclick="navigate('settings', this)">
+            <i class="material-icons-round">settings</i>
+            <span>Ajustes</span>
+        </div>
+    </nav>
+
+    <script>
+        // CONFIGURAÇÕES DO SUPABASE INTEGRADAS
+        const SUPABASE_URL = 'https://xvcjeapbarkapdgnghdx.supabase.co';
+        const SUPABASE_KEY = 'sb_publishable_Yy2D-lT9zAwdJfyRS5VL2Q_KuCUKdY1';
+        const ADMIN_PASSWORD = "1234";
+
+        let supabaseClient = null;
+        if (typeof supabase !== 'undefined' && SUPABASE_URL !== 'https://SEU-PROJETO.supabase.co') {
+            supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        }
+
+        const AppState = {
+            isAdmin: false,
+            favorites: [],
+            myRecipes: [],
+            officialRecipes: []
+        };
+
+        async function initApp() {
+            localforage.config({ name: 'MeuLivroReceitasPro', storeName: 'pessoal' });
+            AppState.myRecipes = await localforage.getItem('myRecipes') || [];
+            AppState.favorites = await localforage.getItem('favorites') || [];
+            
+            await loadOfficialRecipes();
+
+            renderLists();
+            updateDashboard();
+        }
+
+        async function loadOfficialRecipes() {
+            if (supabaseClient) {
+                // Carrega do Banco na Nuvem (Supabase)
+                const { data, error } = await supabaseClient.from('receitas').select('*').eq('is_official', true);
+                if (!error && data) {
+                    AppState.officialRecipes = data.map(r => ({
+                        id: r.id.toString(),
+                        title: r.title,
+                        category: r.category,
+                        time: r.time,
+                        yield: r.yield,
+                        isOfficial: true,
+                        ingredients: typeof r.ingredients === 'string' ? JSON.parse(r.ingredients) : r.ingredients,
+                        prep: r.prep
+                    }));
+                    return;
+                }
+            }
+            
+            // Fallback Local caso o Supabase não responda
+            const savedOfficials = await localforage.getItem('officialRecipes');
+            if (savedOfficials) {
+                AppState.officialRecipes = savedOfficials;
+            } else {
+                AppState.officialRecipes = [{
+                    id: 'off_1',
+                    title: 'Picolé Base Água Artesanal',
+                    category: 'Picolés & Sorvetes',
+                    time: '30 min',
+                    yield: '15 unidades',
+                    isOfficial: true,
+                    ingredients: ['1000 ml Água', '300 g Açúcar', '7 g Liga Neutra', '20 g Saborizante'],
+                    prep: '1. Misture os ingredientes secos.\n2. Adicione água no liquidificador.\n3. Bata até homogeneizar.'
+                }];
+            }
+        }
+
+        async function saveLocalData() {
+            await localforage.setItem('myRecipes', AppState.myRecipes);
+            await localforage.setItem('favorites', AppState.favorites);
+            if (!supabaseClient) {
+                await localforage.setItem('officialRecipes', AppState.officialRecipes);
+            }
+        }
+
+        function navigate(viewId, navElement = null) {
+            document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+            document.getElementById('view-' + viewId).classList.add('active');
+            
+            if (navElement) {
+                document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+                navElement.classList.add('active');
+            }
+            window.scrollTo(0, 0);
+        }
+
+        function renderLists() {
+            const searchOff = document.getElementById('search-officials').value.toLowerCase();
+            const searchMine = document.getElementById('search-mine').value.toLowerCase();
+
+            const filteredOff = AppState.officialRecipes.filter(r => r.title.toLowerCase().includes(searchOff));
+            const filteredMine = AppState.myRecipes.filter(r => r.title.toLowerCase().includes(searchMine));
+
+            renderRecipeList('list-officials', filteredOff);
+            renderRecipeList('list-mine', filteredMine);
+            
+            const favs = [...AppState.officialRecipes, ...AppState.myRecipes].filter(r => AppState.favorites.includes(r.id));
+            renderRecipeList('list-favorites', favs);
+        }
+
+        function renderRecipeList(containerId, recipes) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            
+            if (recipes.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color: var(--text-muted); padding: 15px;">Nenhuma receita encontrada.</p>';
+                return;
+            }
+
+            recipes.forEach(recipe => {
+                const isFav = AppState.favorites.includes(recipe.id);
+                const tagClass = recipe.isOfficial ? 'official' : 'personal';
+                const tagText = recipe.isOfficial ? 'Oficial' : 'Minha Receita';
+                
+                const card = document.createElement('div');
+                card.className = `recipe-card ${tagClass}`;
+                card.onclick = () => openRecipeDetail(recipe.id);
+                
+                card.innerHTML = `
+                    <div class="recipe-info">
+                        <span class="badge ${tagClass}">${tagText}</span>
+                        <div class="recipe-title">${recipe.title}</div>
+                        <div class="recipe-meta">
+                            <span>⏱️ ${recipe.time}</span> | <span>📊 ${recipe.yield}</span>
+                        </div>
+                    </div>
+                    <div style="padding: 5px;" onclick="event.stopPropagation(); toggleFavorite('${recipe.id}')">
+                        <i class="material-icons-round" style="color: ${isFav ? 'var(--primary)' : 'var(--border)'}">
+                            ${isFav ? 'favorite' : 'favorite_border'}
+                        </i>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function updateDashboard() {
+            document.getElementById('stat-official').innerText = AppState.officialRecipes.length;
+            document.getElementById('stat-personal').innerText = AppState.myRecipes.length;
+            document.getElementById('stat-favs').innerText = AppState.favorites.length;
+            
+            const recent = [...AppState.officialRecipes, ...AppState.myRecipes].slice(0, 3);
+            renderRecipeList('recent-recipes', recent);
+        }
+
+        function toggleFavorite(id) {
+            const idx = AppState.favorites.indexOf(id);
+            if (idx > -1) AppState.favorites.splice(idx, 1);
+            else AppState.favorites.push(id);
+            
+            saveLocalData();
+            renderLists();
+            updateDashboard();
+        }
+
+        function openRecipeDetail(id) {
+            const recipe = [...AppState.officialRecipes, ...AppState.myRecipes].find(r => r.id === id);
+            if (!recipe) return;
+
+            document.getElementById('detail-title').innerText = recipe.title;
+            document.getElementById('detail-category').innerText = recipe.category;
+            document.getElementById('detail-time').innerText = recipe.time || 'N/A';
+            document.getElementById('detail-yield').innerText = recipe.yield || 'N/A';
+            
+            const badge = document.getElementById('detail-badge');
+            badge.className = 'badge ' + (recipe.isOfficial ? 'official' : 'personal');
+            badge.innerText = recipe.isOfficial ? '📚 RECEITA OFICIAL' : '📝 MINHA RECEITA';
+
+            const ings = document.getElementById('detail-ingredients');
+            ings.innerHTML = (Array.isArray(recipe.ingredients) ? recipe.ingredients : []).map(i => `<li>${i}</li>`).join('');
+            
+            document.getElementById('detail-prep').innerText = recipe.prep;
+
+            const actionBar = document.getElementById('detail-actions');
+            actionBar.innerHTML = '';
+
+            if (recipe.isOfficial) {
+                actionBar.innerHTML += `<button class="btn" onclick="duplicateToMine('${recipe.id}')"><i class="material-icons-round">content_copy</i> Usar como minha</button>`;
+                if (AppState.isAdmin) {
+                    actionBar.innerHTML += `<button class="btn btn-secondary" onclick="editRecipe('${recipe.id}')"><i class="material-icons-round">edit</i> Editar</button>`;
+                    actionBar.innerHTML += `<button class="btn btn-danger" onclick="deleteRecipe('${recipe.id}')"><i class="material-icons-round">delete</i></button>`;
+                }
+            } else {
+                actionBar.innerHTML += `<button class="btn btn-secondary" onclick="editRecipe('${recipe.id}')"><i class="material-icons-round">edit</i> Editar</button>`;
+                actionBar.innerHTML += `<button class="btn btn-danger" onclick="deleteRecipe('${recipe.id}')"><i class="material-icons-round">delete</i> Excluir</button>`;
+            }
+
+            navigate('detail');
+        }
+
+        function duplicateToMine(recipeId) {
+            const original = AppState.officialRecipes.find(r => r.id === recipeId);
+            if (!original) return;
+            
+            const copy = JSON.parse(JSON.stringify(original));
+            copy.id = 'my_' + Date.now();
+            copy.title = copy.title + ' (Cópia)';
+            copy.isOfficial = false;
+            
+            AppState.myRecipes.push(copy);
+            saveLocalData();
+            renderLists();
+            updateDashboard();
+            alert('Cópia adicionada em "Minhas Receitas"!');
+            navigate('mine');
+        }
+
+        function openRecipeForm(isOfficial = false) {
+            document.getElementById('form-id').value = '';
+            document.getElementById('form-is-official').value = isOfficial ? 'true' : 'false';
+            document.getElementById('form-title').innerText = isOfficial ? 'Nova Receita Oficial' : 'Nova Receita Pessoal';
+            document.getElementById('form-name').value = '';
+            document.getElementById('form-time').value = '';
+            document.getElementById('form-yield').value = '';
+            document.getElementById('form-ingredients').value = '';
+            document.getElementById('form-prep').value = '';
+            
+            document.getElementById('modal-form').style.display = 'block';
+        }
+
+        function closeRecipeForm() {
+            document.getElementById('modal-form').style.display = 'none';
+        }
+
+        async function saveRecipe() {
+            const id = document.getElementById('form-id').value;
+            const isOfficial = document.getElementById('form-is-official').value === 'true';
+            
+            const ingredientsArray = document.getElementById('form-ingredients').value.split('\n').filter(i => i.trim() !== '');
+
+            const recipeData = {
+                title: document.getElementById('form-name').value || 'Sem título',
+                category: document.getElementById('form-category').value,
+                time: document.getElementById('form-time').value,
+                yield: document.getElementById('form-yield').value,
+                is_official: isOfficial,
+                ingredients: JSON.stringify(ingredientsArray),
+                prep: document.getElementById('form-prep').value
+            };
+
+            if (isOfficial && supabaseClient) {
+                // Salva ou atualiza diretamente na Nuvem (Supabase)
+                if (id && !id.startsWith('off_')) {
+                    await supabaseClient.from('receitas').update(recipeData).eq('id', id);
+                } else {
+                    await supabaseClient.from('receitas').insert([recipeData]);
+                }
+                await loadOfficialRecipes();
+            } else {
+                // Salva na memória local (LocalForage)
+                const localObj = { ...recipeData, id: id || (isOfficial ? 'off_' : 'my_') + Date.now(), isOfficial, ingredients: ingredientsArray };
+                const targetArray = isOfficial ? AppState.officialRecipes : AppState.myRecipes;
+
+                if (id) {
+                    const idx = targetArray.findIndex(r => r.id === id);
+                    if (idx > -1) targetArray[idx] = localObj;
+                } else {
+                    targetArray.push(localObj);
+                }
+                saveLocalData();
+            }
+
+            renderLists();
+            updateDashboard();
+            closeRecipeForm();
+            navigate(isOfficial ? 'officials' : 'mine');
+        }
+
+        function editRecipe(id) {
+            const recipe = [...AppState.officialRecipes, ...AppState.myRecipes].find(r => r.id === id);
+            if (!recipe) return;
+
+            document.getElementById('form-id').value = recipe.id;
+            document.getElementById('form-is-official').value = recipe.isOfficial ? 'true' : 'false';
+            document.getElementById('form-title').innerText = 'Editar Receita';
+            document.getElementById('form-name').value = recipe.title;
+            document.getElementById('form-category').value = recipe.category;
+            document.getElementById('form-time').value = recipe.time;
+            document.getElementById('form-yield').value = recipe.yield;
+            document.getElementById('form-ingredients').value = (Array.isArray(recipe.ingredients) ? recipe.ingredients : []).join('\n');
+            document.getElementById('form-prep').value = recipe.prep;
+
+            document.getElementById('modal-form').style.display = 'block';
+        }
+
+        async function deleteRecipe(id) {
+            if (!confirm('Tem certeza que deseja excluir esta receita?')) return;
+
+            const isOff = id.startsWith('off_') || !isNaN(id);
+            if (isOff && supabaseClient) {
+                await supabaseClient.from('receitas').delete().eq('id', id);
+                await loadOfficialRecipes();
+            } else {
+                AppState.officialRecipes = AppState.officialRecipes.filter(r => r.id !== id);
+                AppState.myRecipes = AppState.myRecipes.filter(r => r.id !== id);
+                saveLocalData();
+            }
+
+            renderLists();
+            updateDashboard();
+            navigate('home');
+        }
+
+        function loginAdmin() {
+            const pwd = document.getElementById('admin-password').value;
+            if (pwd === ADMIN_PASSWORD) {
+                AppState.isAdmin = true;
+                document.getElementById('admin-login-area').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'block';
+                alert('Acesso administrativo concedido!');
+            } else {
+                alert('Senha incorreta!');
+            }
+        }
+
+        function logoutAdmin() {
+            AppState.isAdmin = false;
+            document.getElementById('admin-login-area').style.display = 'block';
+            document.getElementById('admin-panel').style.display = 'none';
+            document.getElementById('admin-password').value = '';
+        }
+
+        window.onload = initApp;
+    </script>
+</body>
+</html>
