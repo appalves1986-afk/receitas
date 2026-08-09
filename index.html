@@ -138,15 +138,34 @@
         <!-- Ajustes -->
         <section id="view-settings" class="view">
             <h2 style="margin-bottom: 15px; font-size: 1.1rem;">Ajustes ⚙️</h2>
+            
+            <div class="stat-card" style="text-align: left; margin-bottom: 15px;">
+                <h4 style="margin-bottom: 8px;">Backup e Restauração</h4>
+                <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 12px;">
+                    Exporte suas receitas pessoais e insumos para um arquivo. Você pode usar este arquivo para restaurar seus dados em outro celular.
+                </p>
+                <button class="btn" style="margin-bottom: 8px; background: var(--secondary); color: #fff;" onclick="exportUserData()">
+                    <i class="material-icons-round">download</i> Exportar Backup (JSON)
+                </button>
+                <label class="btn btn-secondary" style="display: flex; cursor: pointer; text-align: center; align-items: center; justify-content: center;">
+                    <i class="material-icons-round">upload</i> Importar Backup
+                    <input type="file" id="import-file" accept=".json" style="display: none;" onchange="importUserData(event)">
+                </label>
+            </div>
+
             <div class="stat-card" style="text-align: left;">
                 <h4 style="margin-bottom: 8px;">Área Administrativa</h4>
                 <div id="admin-login-area">
-                    <input type="password" id="admin-password" placeholder="Senha (1234)">
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 10px;">Acesso restrito para criar e editar receitas oficiais.</p>
+                    <input type="email" id="admin-email" placeholder="E-mail do Admin">
+                    <input type="password" id="admin-password" placeholder="Sua senha">
                     <button class="btn" onclick="loginAdmin()">Entrar como Admin</button>
                 </div>
                 <div id="admin-panel" style="display: none;">
-                    <p style="color: var(--personal-tag); font-weight: bold; margin-bottom: 10px; font-size: 0.85rem;">✅ Admin Ativo</p>
-                    <button class="btn" style="margin-bottom: 8px; background: var(--official-tag);" onclick="openRecipeForm(true, true)"><i class="material-icons-round">add</i> Nova Receita Oficial (Supabase)</button>
+                    <p style="color: var(--personal-tag); font-weight: bold; margin-bottom: 10px; font-size: 0.85rem;">✅ Admin Autenticado</p>
+                    <button class="btn" style="margin-bottom: 8px; background: var(--official-tag);" onclick="openRecipeForm(true, true)">
+                        <i class="material-icons-round">add</i> Nova Receita Oficial (Supabase)
+                    </button>
                     <button class="btn btn-secondary" onclick="logoutAdmin()">Sair</button>
                 </div>
             </div>
@@ -156,7 +175,6 @@
         <section id="view-detail" class="view">
             <button id="detail-back-btn" class="btn btn-secondary" style="margin-bottom: 15px; width: auto;" onclick="navigate('home')"><i class="material-icons-round">arrow_back</i> Voltar</button>
             
-            <!-- Barra de Ações Rápidas -->
             <div class="action-buttons-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
                 <button id="btn-action-copy" class="btn-action" style="display:none;" onclick="useOfficialRecipeAsMine()"><i class="material-icons-round">content_copy</i> Usar Receita (Criar Cópia)</button>
                 <button id="btn-action-edit" class="btn-action" style="display:none;" onclick="editCurrentRecipe()"><i class="material-icons-round">edit</i> Editar</button>
@@ -189,13 +207,13 @@
             <h3 id="form-title" style="margin-bottom: 12px;">Nova Receita</h3>
             <input type="hidden" id="form-recipe-id">
             <input type="hidden" id="form-is-official">
-            <input type="hidden" id="form-image-base64">
+            <input type="hidden" id="form-image-url">
             
             <label style="font-size:0.8rem;">Nome da Receita</label>
             <input type="text" id="form-name" placeholder="Ex: Picolé Gourmet">
             
             <label style="font-size:0.8rem;">Foto do Dispositivo (Galeria / Câmera)</label>
-            <input type="file" id="form-image-file" accept="image/*" onchange="handleImageUpload(event)">
+            <input type="file" id="form-image-file" accept="image/*">
             
             <label style="font-size:0.8rem;">Categoria</label>
             <select id="form-category">
@@ -274,7 +292,6 @@
     </nav>
 
     <script>
-        const ADMIN_PASSWORD = "1234";
         const SUPABASE_URL = 'https://xvcjeapbarkapdgnghdx.supabase.co';
         const SUPABASE_KEY = 'sb_publishable_Yy2D-lT9zAwdJfyRS5VL2Q_KuCUKJZz';
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -293,10 +310,25 @@
             AppState.myRecipes = await localforage.getItem('myRecipes') || [];
             AppState.favorites = await localforage.getItem('favorites') || [];
             AppState.ingredientsStock = await localforage.getItem('ingredientsStock') || [];
+            
+            await checkAdminSession();
             await loadOfficialRecipes();
             renderLists();
             renderIngredientsStock();
             updateDashboard();
+        }
+
+        async function checkAdminSession() {
+            const { data: { session } } = await _supabase.auth.getSession();
+            if (session) {
+                AppState.isAdmin = true;
+                document.getElementById('admin-login-area').style.display = 'none';
+                document.getElementById('admin-panel').style.display = 'block';
+            } else {
+                AppState.isAdmin = false;
+                document.getElementById('admin-login-area').style.display = 'block';
+                document.getElementById('admin-panel').style.display = 'none';
+            }
         }
 
         async function loadOfficialRecipes() {
@@ -332,15 +364,28 @@
             window.scrollTo(0,0);
         }
 
-        function handleImageUpload(event) {
-            const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    document.getElementById('form-image-base64').value = e.target.result;
-                };
-                reader.readAsDataURL(file);
+        // --- UPLOAD PARA SUPABASE STORAGE ---
+        async function uploadImageToStorage(fileInput) {
+            const file = fileInput.files[0];
+            if (!file) return null;
+
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+
+            const { data, error } = await _supabase.storage
+                .from('fotos-receitas')
+                .upload(fileName, file);
+
+            if (error) {
+                alert('Erro no upload da imagem: ' + error.message);
+                return null;
             }
+
+            const { data: publicUrlData } = _supabase.storage
+                .from('fotos-receitas')
+                .getPublicUrl(fileName);
+
+            return publicUrlData.publicUrl;
         }
 
         // --- GESTÃO DE INSUMOS ---
@@ -453,7 +498,14 @@
         async function saveRecipe() {
             const recipeId = document.getElementById('form-recipe-id').value;
             const isOfficial = document.getElementById('form-is-official').value === 'true';
-            
+            const fileInput = document.getElementById('form-image-file');
+
+            let imageUrl = document.getElementById('form-image-url').value;
+            if (fileInput.files.length > 0) {
+                const uploadedUrl = await uploadImageToStorage(fileInput);
+                if (uploadedUrl) imageUrl = uploadedUrl;
+            }
+
             const ingredientsList = [];
             document.querySelectorAll('.ingredient-row').forEach(row => {
                 const ingId = row.querySelector('.recipe-ing-select').value;
@@ -472,7 +524,7 @@
 
             const recipeData = {
                 title: document.getElementById('form-name').value || 'Sem título',
-                image: document.getElementById('form-image-base64').value,
+                image: imageUrl,
                 category: document.getElementById('form-category').value,
                 time: document.getElementById('form-time').value,
                 yield: document.getElementById('form-yield').value,
@@ -513,7 +565,7 @@
             alert('Receita salva com sucesso!');
         }
 
-        // --- AÇÕES: EDITAR, EXCLUIR, DUPLICAR, USAR OFICIAL ---
+        // --- AÇÕES: DETALHES, EDITAR, EXCLUIR, DUPLICAR ---
         function openRecipeDetail(id) {
             AppState.currentRecipeId = id;
             const recipe = [...AppState.officialRecipes, ...AppState.myRecipes].find(r => r.id === id);
@@ -534,7 +586,6 @@
             document.getElementById('detail-badge').className = 'badge ' + (recipe.isOfficial ? 'official' : 'personal');
             document.getElementById('detail-badge').innerText = recipe.isOfficial ? '📚 OFICIAL' : '📝 MINHA';
             
-            // Controle de visibilidade dos botões contextuais
             const btnCopy = document.getElementById('btn-action-copy');
             const btnEdit = document.getElementById('btn-action-edit');
             const btnDelete = document.getElementById('btn-action-delete');
@@ -569,7 +620,7 @@
             if(!recipe) return;
 
             if (recipe.isOfficial && !AppState.isAdmin) {
-                alert('Você só pode editar receitas oficiais se estiver logado como Admin nos Ajustes.');
+                alert('Você só pode editar receitas oficiais se estiver logado como Admin.');
                 return;
             }
 
@@ -577,7 +628,7 @@
             document.getElementById('form-is-official').value = recipe.isOfficial ? 'true' : 'false';
             document.getElementById('form-title').innerText = recipe.isOfficial ? 'Editar Receita Oficial' : 'Editar Minha Receita';
             document.getElementById('form-name').value = recipe.title;
-            document.getElementById('form-image-base64').value = recipe.image || '';
+            document.getElementById('form-image-url').value = recipe.image || '';
             document.getElementById('form-category').value = recipe.category || 'Outros';
             document.getElementById('form-time').value = recipe.time || '';
             document.getElementById('form-yield').value = recipe.yield || '';
@@ -723,7 +774,7 @@
                 document.getElementById('form-title').innerText = isOfficial ? 'Nova Receita Oficial (Supabase)' : 'Nova Receita Pessoal';
                 document.getElementById('form-name').value = '';
                 document.getElementById('form-image-file').value = '';
-                document.getElementById('form-image-base64').value = '';
+                document.getElementById('form-image-url').value = '';
                 document.getElementById('form-time').value = '';
                 document.getElementById('form-yield').value = '';
                 document.getElementById('form-prep').value = '';
@@ -736,19 +787,89 @@
 
         function closeRecipeForm() { document.getElementById('modal-form').style.display = 'none'; }
 
-        function loginAdmin() {
-            if(document.getElementById('admin-password').value === ADMIN_PASSWORD) {
+        // --- AUTH E ADMIN ---
+        async function loginAdmin() {
+            const email = document.getElementById('admin-email').value;
+            const password = document.getElementById('admin-password').value;
+
+            if (!email || !password) {
+                alert('Por favor, preencha o e-mail e a senha.');
+                return;
+            }
+
+            const { data, error } = await _supabase.auth.signInWithPassword({
+                email: email,
+                password: password
+            });
+
+            if (error) {
+                alert('Erro ao realizar login: ' + error.message);
+            } else {
                 AppState.isAdmin = true;
                 document.getElementById('admin-login-area').style.display = 'none';
                 document.getElementById('admin-panel').style.display = 'block';
-                alert('Admin ativo!');
-            } else { alert('Senha incorreta!'); }
+                alert('Login efetuado com sucesso!');
+                renderLists();
+            }
         }
 
-        function logoutAdmin() {
+        async function logoutAdmin() {
+            await _supabase.auth.signOut();
             AppState.isAdmin = false;
+            document.getElementById('admin-email').value = '';
+            document.getElementById('admin-password').value = '';
             document.getElementById('admin-login-area').style.display = 'block';
             document.getElementById('admin-panel').style.display = 'none';
+            alert('Sessão encerrada.');
+            renderLists();
+        }
+
+        // --- BACKUP E RESTAURAÇÃO ---
+        async function exportUserData() {
+            const backupData = {
+                myRecipes: await localforage.getItem('myRecipes') || [],
+                ingredientsStock: await localforage.getItem('ingredientsStock') || [],
+                favorites: await localforage.getItem('favorites') || []
+            };
+
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(backupData, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `backup_receitas_${Date.now()}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function importUserData(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (data.myRecipes) {
+                        await localforage.setItem('myRecipes', data.myRecipes);
+                        AppState.myRecipes = data.myRecipes;
+                    }
+                    if (data.ingredientsStock) {
+                        await localforage.setItem('ingredientsStock', data.ingredientsStock);
+                        AppState.ingredientsStock = data.ingredientsStock;
+                    }
+                    if (data.favorites) {
+                        await localforage.setItem('favorites', data.favorites);
+                        AppState.favorites = data.favorites;
+                    }
+                    alert('Dados restaurados com sucesso!');
+                    renderLists();
+                    renderIngredientsStock();
+                    updateDashboard();
+                } catch (err) {
+                    alert('Erro ao importar arquivo. Certifique-se de selecionar um backup JSON válido.');
+                }
+            };
+            reader.readAsText(file);
         }
 
         window.onload = initApp;
