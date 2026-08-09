@@ -48,9 +48,10 @@
         .recipe-card.official::before { background-color: var(--official-tag); }
         .recipe-card.personal::before { background-color: var(--personal-tag); }
 
+        .recipe-thumb { width: 55px; height: 55px; border-radius: 10px; object-fit: cover; background: var(--border); flex-shrink: 0; }
         .recipe-info { flex: 1; }
         .recipe-title { font-weight: 600; font-size: 0.95rem; margin-bottom: 2px; }
-        .recipe-meta { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; }
+        .recipe-meta { font-size: 0.75rem; color: var(--text-muted); display: flex; gap: 8px; flex-wrap: wrap; }
         
         .badge { font-size: 0.65rem; padding: 2px 8px; border-radius: 12px; color: white; font-weight: 600; display: inline-block; margin-bottom: 4px; }
         .badge.official { background: var(--official-tag); }
@@ -63,12 +64,14 @@
 
         .btn { background: var(--primary); color: white; border: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; width: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.9rem; }
         .btn-secondary { background: var(--border); color: var(--text-main); }
-        .btn-danger { background: #ff7675; color: white; }
         
         input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; font-size: 0.9rem; background: var(--bg-color); }
 
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; padding: 20px; overflow-y: auto; }
         .modal-content { background: white; border-radius: var(--border-radius); padding: 20px; max-width: 500px; margin: 0 auto; }
+        
+        .ingredient-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+        .ingredient-row input { margin-bottom: 0; }
     </style>
 </head>
 <body>
@@ -133,13 +136,16 @@
         <section id="view-detail" class="view">
             <button class="btn btn-secondary" style="margin-bottom: 15px; width: auto;" onclick="navigate('home')"><i class="material-icons-round">arrow_back</i> Voltar</button>
             <div>
+                <img id="detail-img" src="" style="width: 100%; height: 200px; object-fit: cover; border-radius: var(--border-radius); margin-bottom: 15px; display: none;">
                 <span id="detail-badge" class="badge"></span>
                 <h2 id="detail-title" style="margin-bottom: 5px;"></h2>
                 <p id="detail-category" style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 10px;"></p>
                 <div class="recipe-meta" style="margin-bottom: 15px;">
-                    <span>⏱️ Tempo: <b id="detail-time"></b></span> | <span>📊 Rendimento: <b id="detail-yield"></b></span>
+                    <span>⏱️ Tempo: <b id="detail-time"></b></span> | 
+                    <span>📊 Rendimento: <b id="detail-yield"></b></span> | 
+                    <span style="color: var(--personal-tag);">💰 Custo Total: <b id="detail-cost">R$ 0,00</b></span>
                 </div>
-                <h3 style="margin-bottom: 8px; font-size: 1rem;">Ingredientes</h3>
+                <h3 style="margin-bottom: 8px; font-size: 1rem;">Ingredientes e Custos</h3>
                 <ul id="detail-ingredients" style="margin-left: 20px; margin-bottom: 15px; line-height: 1.6;"></ul>
                 <h3 style="margin-bottom: 8px; font-size: 1rem;">Modo de Preparo</h3>
                 <p id="detail-prep" style="line-height: 1.5; white-space: pre-line;"></p>
@@ -152,22 +158,41 @@
         <div class="modal-content">
             <h3 id="form-title" style="margin-bottom: 12px;">Nova Receita</h3>
             <input type="hidden" id="form-is-official">
-            <label style="font-size:0.8rem;">Nome</label>
+            
+            <label style="font-size:0.8rem;">Nome da Receita</label>
             <input type="text" id="form-name" placeholder="Ex: Picolé Gourmet">
+            
+            <label style="font-size:0.8rem;">Link da Imagem (URL)</label>
+            <input type="text" id="form-image" placeholder="https://exemplo.com/foto.jpg">
+
             <label style="font-size:0.8rem;">Categoria</label>
             <select id="form-category">
                 <option value="Picolés & Sorvetes">Picolés & Sorvetes</option>
                 <option value="Bolos">Bolos</option>
                 <option value="Doces">Doces</option>
+                <option value="Outros">Outros</option>
             </select>
+            
             <div style="display: flex; gap: 10px;">
                 <div style="flex:1;"><label style="font-size:0.8rem;">Tempo</label><input type="text" id="form-time" placeholder="30 min"></div>
                 <div style="flex:1;"><label style="font-size:0.8rem;">Rendimento</label><input type="text" id="form-yield" placeholder="10 un"></div>
             </div>
-            <label style="font-size:0.8rem;">Ingredientes (um por linha)</label>
-            <textarea id="form-ingredients" rows="3" placeholder="Água&#10;Açúcar"></textarea>
-            <label style="font-size:0.8rem;">Preparo</label>
+
+            <label style="font-size:0.8rem;">Ingredientes, Quantidade e Custo (R$)</label>
+            <div id="ingredients-container">
+                <div class="ingredient-row">
+                    <input type="text" placeholder="Ingrediente (ex: Leite)" class="ing-name" style="flex: 2;">
+                    <input type="text" placeholder="Qtd (ex: 1L)" class="ing-qty" style="flex: 1;">
+                    <input type="number" step="0.01" placeholder="R$ Custo" class="ing-cost" style="flex: 1;" oninput="calculateTotalCost()">
+                </div>
+            </div>
+            <button class="btn btn-secondary" style="padding: 6px; font-size: 0.8rem; margin-bottom: 12px;" onclick="addIngredientRow()">+ Adicionar outro ingrediente</button>
+
+            <p style="font-weight: 600; font-size: 0.9rem; margin-bottom: 10px;">Custo Estimado da Receita: <span id="form-total-cost" style="color: var(--primary);">R$ 0,00</span></p>
+
+            <label style="font-size:0.8rem;">Modo de Preparo</label>
             <textarea id="form-prep" rows="3" placeholder="Passo a passo..."></textarea>
+            
             <div style="display: flex; gap: 10px; margin-top: 10px;">
                 <button class="btn btn-secondary" onclick="closeRecipeForm()">Cancelar</button>
                 <button class="btn" onclick="saveRecipe()">Salvar</button>
@@ -215,10 +240,19 @@
                     category: r.category,
                     time: r.time,
                     yield: r.yield,
+                    image: r.image || '',
                     isOfficial: true,
-                    ingredients: r.ingredients ? r.ingredients.split('\n') : [],
+                    ingredients: parseIngredients(r.ingredients),
                     prep: r.prep
                 }));
+            }
+        }
+
+        function parseIngredients(raw) {
+            if (!raw) return [];
+            if (Array.isArray(raw)) return raw;
+            try { return JSON.parse(raw); } catch(e) {
+                return raw.split('\n').map(item => ({ name: item, qty: '', cost: 0 }));
             }
         }
 
@@ -232,15 +266,48 @@
             window.scrollTo(0,0);
         }
 
+        function addIngredientRow(name = '', qty = '', cost = '') {
+            const container = document.getElementById('ingredients-container');
+            const row = document.createElement('div');
+            row.className = 'ingredient-row';
+            row.innerHTML = `
+                <input type="text" placeholder="Ingrediente" class="ing-name" value="${name}" style="flex: 2;">
+                <input type="text" placeholder="Qtd" class="ing-qty" value="${qty}" style="flex: 1;">
+                <input type="number" step="0.01" placeholder="R$ Custo" class="ing-cost" value="${cost}" style="flex: 1;" oninput="calculateTotalCost()">
+                <button type="button" onclick="this.parentElement.remove(); calculateTotalCost()" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i class="material-icons-round">close</i></button>
+            `;
+            container.appendChild(row);
+        }
+
+        function calculateTotalCost() {
+            let total = 0;
+            document.querySelectorAll('.ing-cost').forEach(input => {
+                const val = parseFloat(input.value) || 0;
+                total += val;
+            });
+            document.getElementById('form-total-cost').innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
+        }
+
         async function saveRecipe() {
             const isOfficial = document.getElementById('form-is-official').value === 'true';
+            
+            const ingredientsList = [];
+            document.querySelectorAll('.ingredient-row').forEach(row => {
+                ingredientsList.push({
+                    name: row.querySelector('.ing-name').value,
+                    qty: row.querySelector('.ing-qty').value,
+                    cost: parseFloat(row.querySelector('.ing-cost').value) || 0
+                });
+            });
+
             const recipeData = {
                 title: document.getElementById('form-name').value || 'Sem título',
+                image: document.getElementById('form-image').value,
                 category: document.getElementById('form-category').value,
                 time: document.getElementById('form-time').value,
                 yield: document.getElementById('form-yield').value,
                 is_official: true,
-                ingredients: document.getElementById('form-ingredients').value,
+                ingredients: JSON.stringify(ingredientsList),
                 prep: document.getElementById('form-prep').value
             };
 
@@ -254,7 +321,7 @@
             } else {
                 recipeData.id = 'my_' + Date.now();
                 recipeData.isOfficial = false;
-                recipeData.ingredients = recipeData.ingredients.split('\n');
+                recipeData.ingredients = ingredientsList;
                 AppState.myRecipes.push(recipeData);
                 await localforage.setItem('myRecipes', AppState.myRecipes);
             }
@@ -293,11 +360,23 @@
                 const card = document.createElement('div');
                 card.className = `recipe-card ${tagClass}`;
                 card.onclick = () => openRecipeDetail(recipe.id);
+                
+                let totalCost = 0;
+                if(Array.isArray(recipe.ingredients)) {
+                    totalCost = recipe.ingredients.reduce((acc, item) => acc + (parseFloat(item.cost) || 0), 0);
+                }
+
+                const imgTag = recipe.image ? `<img src="${recipe.image}" class="recipe-thumb">` : `<div class="recipe-thumb" style="display:flex; align-items:center; justify-content:center;"><i class="material-icons-round" style="color:var(--text-muted);">restaurant</i></div>`;
+
                 card.innerHTML = `
+                    ${imgTag}
                     <div class="recipe-info">
                         <span class="badge ${tagClass}">${recipe.isOfficial ? 'Oficial' : 'Minha'}</span>
                         <div class="recipe-title">${recipe.title}</div>
-                        <div class="recipe-meta"><span>⏱️ ${recipe.time}</span> | <span>📊 ${recipe.yield}</span></div>
+                        <div class="recipe-meta">
+                            <span>⏱️ ${recipe.time || 'N/A'}</span> | 
+                            <span>💰 R$ ${totalCost.toFixed(2).replace('.', ',')}</span>
+                        </div>
                     </div>
                     <div style="padding: 5px;" onclick="event.stopPropagation(); toggleFavorite('${recipe.id}')">
                         <i class="material-icons-round" style="color: ${isFav ? 'var(--primary)' : 'var(--border)'}">${isFav ? 'favorite' : 'favorite_border'}</i>
@@ -325,13 +404,33 @@
         function openRecipeDetail(id) {
             const recipe = [...AppState.officialRecipes, ...AppState.myRecipes].find(r => r.id === id);
             if(!recipe) return;
+            
+            const imgEl = document.getElementById('detail-img');
+            if(recipe.image) {
+                imgEl.src = recipe.image;
+                imgEl.style.display = 'block';
+            } else {
+                imgEl.style.display = 'none';
+            }
+
             document.getElementById('detail-title').innerText = recipe.title;
             document.getElementById('detail-category').innerText = recipe.category;
             document.getElementById('detail-time').innerText = recipe.time || 'N/A';
             document.getElementById('detail-yield').innerText = recipe.yield || 'N/A';
             document.getElementById('detail-badge').className = 'badge ' + (recipe.isOfficial ? 'official' : 'personal');
             document.getElementById('detail-badge').innerText = recipe.isOfficial ? '📚 OFICIAL' : '📝 MINHA';
-            document.getElementById('detail-ingredients').innerHTML = recipe.ingredients.map(i => `<li>${i}</li>`).join('');
+            
+            let totalCost = 0;
+            let ingHtml = '';
+            if(Array.isArray(recipe.ingredients)) {
+                recipe.ingredients.forEach(i => {
+                    const costVal = parseFloat(i.cost) || 0;
+                    totalCost += costVal;
+                    ingHtml += `<li><b>${i.name}</b> - ${i.qty} <span style="color:var(--text-muted); font-size:0.8rem;">(R$ ${costVal.toFixed(2).replace('.', ',')})</span></li>`;
+                });
+            }
+            document.getElementById('detail-ingredients').innerHTML = ingHtml || '<li>Nenhum ingrediente informado.</li>';
+            document.getElementById('detail-cost').innerText = `R$ ${totalCost.toFixed(2).replace('.', ',')}`;
             document.getElementById('detail-prep').innerText = recipe.prep;
             navigate('detail');
         }
@@ -339,6 +438,14 @@
         function openRecipeForm(isOfficial) {
             document.getElementById('form-is-official').value = isOfficial ? 'true' : 'false';
             document.getElementById('form-title').innerText = isOfficial ? 'Nova Receita Oficial (Supabase)' : 'Nova Receita Pessoal';
+            document.getElementById('form-name').value = '';
+            document.getElementById('form-image').value = '';
+            document.getElementById('form-time').value = '';
+            document.getElementById('form-yield').value = '';
+            document.getElementById('form-prep').value = '';
+            document.getElementById('ingredients-container').innerHTML = '';
+            addIngredientRow();
+            calculateTotalCost();
             document.getElementById('modal-form').style.display = 'block';
         }
 
