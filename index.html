@@ -42,7 +42,7 @@
         .stat-card h3 { font-size: 1.8rem; color: var(--primary); }
         .stat-card p { font-size: 0.8rem; color: var(--text-muted); }
 
-        .recipe-list { display: flex; flex-direction: column; gap: 12px; }
+        .recipe-list, .ingredient-list-ui { display: flex; flex-direction: column; gap: 12px; }
         .recipe-card { background: var(--card-bg); border-radius: var(--border-radius); padding: 12px 15px; display: flex; align-items: center; gap: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.03); position: relative; overflow: hidden; cursor: pointer; }
         .recipe-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 5px; }
         .recipe-card.official::before { background-color: var(--official-tag); }
@@ -58,20 +58,30 @@
         .badge.personal { background: var(--personal-tag); }
 
         .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; height: var(--nav-height); background: var(--card-bg); display: flex; justify-content: space-around; align-items: center; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 1000; }
-        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); font-size: 0.7rem; gap: 2px; cursor: pointer; width: 20%; }
+        .nav-item { display: flex; flex-direction: column; align-items: center; color: var(--text-muted); font-size: 0.65rem; gap: 2px; cursor: pointer; width: 16.6%; text-align: center; }
         .nav-item.active { color: var(--primary); font-weight: 600; }
-        .nav-item i { font-size: 1.4rem; }
+        .nav-item i { font-size: 1.3rem; }
 
         .btn { background: var(--primary); color: white; border: none; padding: 10px 16px; border-radius: 10px; font-weight: 600; width: 100%; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.9rem; }
         .btn-secondary { background: var(--border); color: var(--text-main); }
+        .btn-action { background: var(--bg-color); border: 1px solid var(--border); color: var(--text-main); padding: 8px 12px; border-radius: 8px; font-size: 0.8rem; cursor: pointer; display: flex; align-items: center; gap: 5px; font-weight: 500; }
         
         input, select, textarea { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; font-size: 0.9rem; background: var(--bg-color); }
 
         .modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 2000; padding: 20px; overflow-y: auto; }
         .modal-content { background: white; border-radius: var(--border-radius); padding: 20px; max-width: 500px; margin: 0 auto; }
         
-        .ingredient-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
-        .ingredient-row input { margin-bottom: 0; }
+        .ingredient-row { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; background: var(--bg-color); padding: 8px; border-radius: 10px; }
+        .ingredient-row select, .ingredient-row input { margin-bottom: 0; }
+        
+        .item-card { background: var(--card-bg); padding: 12px 15px; border-radius: var(--border-radius); display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 8px rgba(0,0,0,0.03); }
+
+        @media print {
+            body * { visibility: hidden; }
+            #view-detail, #view-detail * { visibility: visible; }
+            #view-detail { position: absolute; left: 0; top: 0; width: 100%; padding: 0; }
+            #detail-back-btn, .action-buttons-bar { display: none !important; }
+        }
     </style>
 </head>
 <body>
@@ -109,6 +119,16 @@
             <div class="recipe-list" id="list-mine"></div>
         </section>
 
+        <!-- Ingredientes / Insumos -->
+        <section id="view-ingredients" class="view">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                <h2 style="font-size: 1.1rem;">Meus Insumos 🛒</h2>
+                <button class="btn" style="width: auto; padding: 6px 12px;" onclick="openIngredientModal()"><i class="material-icons-round">add</i> Novo Insumo</button>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px;">Cadastre a embalagem comprada (Ex: Açúcar, 5000g, R$ 18,00).</p>
+            <div class="ingredient-list-ui" id="list-ingredients-stock"></div>
+        </section>
+
         <!-- Favoritos -->
         <section id="view-favorites" class="view">
             <h2 style="margin-bottom: 12px; font-size: 1.1rem;">Favoritos ❤️</h2>
@@ -126,7 +146,7 @@
                 </div>
                 <div id="admin-panel" style="display: none;">
                     <p style="color: var(--personal-tag); font-weight: bold; margin-bottom: 10px; font-size: 0.85rem;">✅ Admin Ativo</p>
-                    <button class="btn" style="margin-bottom: 8px; background: var(--official-tag);" onclick="openRecipeForm(true)"><i class="material-icons-round">add</i> Nova Receita Oficial (Supabase)</button>
+                    <button class="btn" style="margin-bottom: 8px; background: var(--official-tag);" onclick="openRecipeForm(true, true)"><i class="material-icons-round">add</i> Nova Receita Oficial (Supabase)</button>
                     <button class="btn btn-secondary" onclick="logoutAdmin()">Sair</button>
                 </div>
             </div>
@@ -134,7 +154,17 @@
 
         <!-- Detalhes -->
         <section id="view-detail" class="view">
-            <button class="btn btn-secondary" style="margin-bottom: 15px; width: auto;" onclick="navigate('home')"><i class="material-icons-round">arrow_back</i> Voltar</button>
+            <button id="detail-back-btn" class="btn btn-secondary" style="margin-bottom: 15px; width: auto;" onclick="navigate('home')"><i class="material-icons-round">arrow_back</i> Voltar</button>
+            
+            <!-- Barra de Ações Rápidas -->
+            <div class="action-buttons-bar" style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
+                <button id="btn-action-copy" class="btn-action" style="display:none;" onclick="useOfficialRecipeAsMine()"><i class="material-icons-round">content_copy</i> Usar Receita (Criar Cópia)</button>
+                <button id="btn-action-edit" class="btn-action" style="display:none;" onclick="editCurrentRecipe()"><i class="material-icons-round">edit</i> Editar</button>
+                <button id="btn-action-duplicate" class="btn-action" onclick="duplicateCurrentRecipe()"><i class="material-icons-round">file_copy</i> Duplicar</button>
+                <button id="btn-action-delete" class="btn-action" style="display:none; color:var(--primary); border-color:var(--primary);" onclick="deleteCurrentRecipe()"><i class="material-icons-round">delete</i> Excluir</button>
+                <button class="btn-action" onclick="window.print()"><i class="material-icons-round">print</i> Imprimir</button>
+            </div>
+
             <div>
                 <img id="detail-img" src="" style="width: 100%; height: 200px; object-fit: cover; border-radius: var(--border-radius); margin-bottom: 15px; display: none;">
                 <span id="detail-badge" class="badge"></span>
@@ -153,18 +183,20 @@
         </section>
     </main>
 
-    <!-- Modal Form -->
+    <!-- Modal Form Receita -->
     <div id="modal-form" class="modal">
         <div class="modal-content">
             <h3 id="form-title" style="margin-bottom: 12px;">Nova Receita</h3>
+            <input type="hidden" id="form-recipe-id">
             <input type="hidden" id="form-is-official">
+            <input type="hidden" id="form-image-base64">
             
             <label style="font-size:0.8rem;">Nome da Receita</label>
             <input type="text" id="form-name" placeholder="Ex: Picolé Gourmet">
             
-            <label style="font-size:0.8rem;">Link da Imagem (URL)</label>
-            <input type="text" id="form-image" placeholder="https://exemplo.com/foto.jpg">
-
+            <label style="font-size:0.8rem;">Foto do Dispositivo (Galeria / Câmera)</label>
+            <input type="file" id="form-image-file" accept="image/*" onchange="handleImageUpload(event)">
+            
             <label style="font-size:0.8rem;">Categoria</label>
             <select id="form-category">
                 <option value="Picolés & Sorvetes">Picolés & Sorvetes</option>
@@ -178,15 +210,9 @@
                 <div style="flex:1;"><label style="font-size:0.8rem;">Rendimento</label><input type="text" id="form-yield" placeholder="10 un"></div>
             </div>
 
-            <label style="font-size:0.8rem;">Ingredientes, Quantidade e Custo (R$)</label>
-            <div id="ingredients-container">
-                <div class="ingredient-row">
-                    <input type="text" placeholder="Ingrediente (ex: Leite)" class="ing-name" style="flex: 2;">
-                    <input type="text" placeholder="Qtd (ex: 1L)" class="ing-qty" style="flex: 1;">
-                    <input type="number" step="0.01" placeholder="R$ Custo" class="ing-cost" style="flex: 1;" oninput="calculateTotalCost()">
-                </div>
-            </div>
-            <button class="btn btn-secondary" style="padding: 6px; font-size: 0.8rem; margin-bottom: 12px;" onclick="addIngredientRow()">+ Adicionar outro ingrediente</button>
+            <label style="font-size:0.8rem;">Ingredientes e Quantidades Usadas na Receita</label>
+            <div id="ingredients-container"></div>
+            <button class="btn btn-secondary" style="padding: 6px; font-size: 0.8rem; margin-bottom: 12px;" onclick="addRecipeIngredientRow()">+ Adicionar ingrediente da lista</button>
 
             <p style="font-weight: 600; font-size: 0.9rem; margin-bottom: 10px;">Custo Estimado da Receita: <span id="form-total-cost" style="color: var(--primary);">R$ 0,00</span></p>
 
@@ -200,11 +226,49 @@
         </div>
     </div>
 
+    <!-- Modal Insumo Individual -->
+    <div id="modal-ingredient" class="modal">
+        <div class="modal-content">
+            <h3 style="margin-bottom: 12px;">Cadastrar Insumo / Embalagem</h3>
+            <input type="hidden" id="ing-edit-id">
+            
+            <label style="font-size:0.8rem;">Nome do Insumo (Ex: Açúcar)</label>
+            <input type="text" id="ing-modal-name" placeholder="Ex: Açúcar Cristal">
+            
+            <div style="display: flex; gap: 10px;">
+                <div style="flex: 1;">
+                    <label style="font-size:0.8rem;">Qtd da Embalagem</label>
+                    <input type="number" step="any" id="ing-modal-package-qty" placeholder="Ex: 5000">
+                </div>
+                <div style="flex: 1;">
+                    <label style="font-size:0.8rem;">Unidade</label>
+                    <select id="ing-modal-unit">
+                        <option value="g">Gramas (g)</option>
+                        <option value="kg">Quilogramas (kg)</option>
+                        <option value="ml">Mililitros (ml)</option>
+                        <option value="L">Litros (L)</option>
+                        <option value="un">Unidades (un)</option>
+                        <option value="pct">Pacotes (pct)</option>
+                    </select>
+                </div>
+            </div>
+
+            <label style="font-size:0.8rem;">Preço Total Pago na Embalagem (R$)</label>
+            <input type="number" step="0.01" id="ing-modal-price" placeholder="Ex: 18.00">
+            
+            <div style="display: flex; gap: 10px; margin-top: 10px;">
+                <button class="btn btn-secondary" onclick="closeIngredientModal()">Cancelar</button>
+                <button class="btn" onclick="saveIngredientStock()">Salvar Insumo</button>
+            </div>
+        </div>
+    </div>
+
     <!-- Navegação -->
     <nav class="bottom-nav">
         <div class="nav-item active" onclick="navigate('home', this)"><i class="material-icons-round">home</i><span>Início</span></div>
         <div class="nav-item" onclick="navigate('officials', this)"><i class="material-icons-round">menu_book</i><span>Oficiais</span></div>
         <div class="nav-item" onclick="navigate('mine', this)"><i class="material-icons-round">edit_document</i><span>Minhas</span></div>
+        <div class="nav-item" onclick="navigate('ingredients', this)"><i class="material-icons-round">inventory_2</i><span>Insumos</span></div>
         <div class="nav-item" onclick="navigate('favorites', this)"><i class="material-icons-round">favorite</i><span>Favoritos</span></div>
         <div class="nav-item" onclick="navigate('settings', this)"><i class="material-icons-round">settings</i><span>Ajustes</span></div>
     </nav>
@@ -219,15 +283,19 @@
             isAdmin: false,
             favorites: [],
             myRecipes: [],
-            officialRecipes: []
+            officialRecipes: [],
+            ingredientsStock: [],
+            currentRecipeId: null
         };
 
         async function initApp() {
             localforage.config({ name: 'MeuLivroReceitasPro' });
             AppState.myRecipes = await localforage.getItem('myRecipes') || [];
             AppState.favorites = await localforage.getItem('favorites') || [];
+            AppState.ingredientsStock = await localforage.getItem('ingredientsStock') || [];
             await loadOfficialRecipes();
             renderLists();
+            renderIngredientsStock();
             updateDashboard();
         }
 
@@ -251,9 +319,7 @@
         function parseIngredients(raw) {
             if (!raw) return [];
             if (Array.isArray(raw)) return raw;
-            try { return JSON.parse(raw); } catch(e) {
-                return raw.split('\n').map(item => ({ name: item, qty: '', cost: 0 }));
-            }
+            try { return JSON.parse(raw); } catch(e) { return []; }
         }
 
         function navigate(viewId, navElement = null) {
@@ -266,63 +332,177 @@
             window.scrollTo(0,0);
         }
 
-        function addIngredientRow(name = '', qty = '', cost = '') {
+        function handleImageUpload(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('form-image-base64').value = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        // --- GESTÃO DE INSUMOS ---
+        function openIngredientModal() {
+            document.getElementById('ing-modal-name').value = '';
+            document.getElementById('ing-modal-package-qty').value = '';
+            document.getElementById('ing-modal-unit').value = 'g';
+            document.getElementById('ing-modal-price').value = '';
+            document.getElementById('modal-ingredient').style.display = 'block';
+        }
+
+        function closeIngredientModal() {
+            document.getElementById('modal-ingredient').style.display = 'none';
+        }
+
+        async function saveIngredientStock() {
+            const name = document.getElementById('ing-modal-name').value;
+            const packageQty = parseFloat(document.getElementById('ing-modal-package-qty').value) || 0;
+            const unit = document.getElementById('ing-modal-unit').value;
+            const price = parseFloat(document.getElementById('ing-modal-price').value) || 0;
+
+            if(!name || packageQty <= 0) {
+                alert('Informe o nome e a quantidade válida da embalagem.');
+                return;
+            }
+
+            const newIng = {
+                id: 'ing_' + Date.now(),
+                name,
+                packageQty,
+                unit,
+                price
+            };
+
+            AppState.ingredientsStock.push(newIng);
+            await localforage.setItem('ingredientsStock', AppState.ingredientsStock);
+            closeIngredientModal();
+            renderIngredientsStock();
+        }
+
+        async function deleteIngredientStock(id) {
+            AppState.ingredientsStock = AppState.ingredientsStock.filter(i => i.id !== id);
+            await localforage.setItem('ingredientsStock', AppState.ingredientsStock);
+            renderIngredientsStock();
+        }
+
+        function renderIngredientsStock() {
+            const container = document.getElementById('list-ingredients-stock');
+            container.innerHTML = '';
+            if(AppState.ingredientsStock.length === 0) {
+                container.innerHTML = '<p style="text-align:center; color: var(--text-muted); padding: 15px;">Nenhum insumo cadastrado.</p>';
+                return;
+            }
+            AppState.ingredientsStock.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'item-card';
+                card.innerHTML = `
+                    <div>
+                        <div style="font-weight: 600; font-size: 0.95rem;">${item.name}</div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted);">Emb: ${item.packageQty}${item.unit} | R$ ${item.price.toFixed(2).replace('.', ',')}</div>
+                    </div>
+                    <button onclick="deleteIngredientStock('${item.id}')" style="background:none; border:none; color:#ff7675; cursor:pointer;"><i class="material-icons-round">delete</i></button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // --- CÁLCULO PROPORCIONAL DE CUSTO ---
+        function calculateItemCost(ing, usedQty) {
+            if (!ing || !ing.packageQty || ing.packageQty <= 0) return 0;
+            const unitCost = ing.price / ing.packageQty;
+            return unitCost * usedQty;
+        }
+
+        function addRecipeIngredientRow(selectedId = '', qtyUsed = '') {
             const container = document.getElementById('ingredients-container');
             const row = document.createElement('div');
             row.className = 'ingredient-row';
+            
+            let options = '<option value="">Selecione um Insumo...</option>';
+            AppState.ingredientsStock.forEach(i => {
+                const sel = i.id === selectedId ? 'selected' : '';
+                options += `<option value="${i.id}" ${sel}>${i.name} (${i.packageQty}${i.unit} - R$ ${i.price.toFixed(2)})</option>`;
+            });
+
             row.innerHTML = `
-                <input type="text" placeholder="Ingrediente" class="ing-name" value="${name}" style="flex: 2;">
-                <input type="text" placeholder="Qtd" class="ing-qty" value="${qty}" style="flex: 1;">
-                <input type="number" step="0.01" placeholder="R$ Custo" class="ing-cost" value="${cost}" style="flex: 1;" oninput="calculateTotalCost()">
+                <select class="recipe-ing-select" style="flex: 2;" onchange="calculateTotalCost()">${options}</select>
+                <input type="number" step="any" placeholder="Qtd usada" class="recipe-ing-qty" value="${qtyUsed}" style="flex: 1;" oninput="calculateTotalCost()">
                 <button type="button" onclick="this.parentElement.remove(); calculateTotalCost()" style="background:none; border:none; color:var(--primary); cursor:pointer;"><i class="material-icons-round">close</i></button>
             `;
             container.appendChild(row);
+            calculateTotalCost();
         }
 
         function calculateTotalCost() {
             let total = 0;
-            document.querySelectorAll('.ing-cost').forEach(input => {
-                const val = parseFloat(input.value) || 0;
-                total += val;
+            document.querySelectorAll('.ingredient-row').forEach(row => {
+                const select = row.querySelector('.recipe-ing-select');
+                const qtyInput = row.querySelector('.recipe-ing-qty');
+                const found = AppState.ingredientsStock.find(i => i.id === select.value);
+                const usedQty = parseFloat(qtyInput.value) || 0;
+                
+                if(found) {
+                    total += calculateItemCost(found, usedQty);
+                }
             });
             document.getElementById('form-total-cost').innerText = `R$ ${total.toFixed(2).replace('.', ',')}`;
         }
 
         async function saveRecipe() {
+            const recipeId = document.getElementById('form-recipe-id').value;
             const isOfficial = document.getElementById('form-is-official').value === 'true';
             
             const ingredientsList = [];
             document.querySelectorAll('.ingredient-row').forEach(row => {
+                const ingId = row.querySelector('.recipe-ing-select').value;
+                const qty = parseFloat(row.querySelector('.recipe-ing-qty').value) || 0;
+                const found = AppState.ingredientsStock.find(i => i.id === ingId);
+                const calculatedCost = found ? calculateItemCost(found, qty) : 0;
+                
                 ingredientsList.push({
-                    name: row.querySelector('.ing-name').value,
-                    qty: row.querySelector('.ing-qty').value,
-                    cost: parseFloat(row.querySelector('.ing-cost').value) || 0
+                    id: ingId,
+                    name: found ? found.name : 'Desconhecido',
+                    unit: found ? found.unit : '',
+                    qty: qty,
+                    cost: calculatedCost
                 });
             });
 
             const recipeData = {
                 title: document.getElementById('form-name').value || 'Sem título',
-                image: document.getElementById('form-image').value,
+                image: document.getElementById('form-image-base64').value,
                 category: document.getElementById('form-category').value,
                 time: document.getElementById('form-time').value,
                 yield: document.getElementById('form-yield').value,
-                is_official: true,
-                ingredients: JSON.stringify(ingredientsList),
                 prep: document.getElementById('form-prep').value
             };
 
             if (isOfficial) {
-                const { error } = await _supabase.from('receitas').insert([recipeData]);
-                if (error) {
-                    alert('Erro ao salvar no Supabase: ' + error.message);
-                    return;
+                recipeData.ingredients = JSON.stringify(ingredientsList);
+                if (recipeId) {
+                    const { error } = await _supabase.from('receitas').update(recipeData).eq('id', recipeId);
+                    if (error) { alert('Erro ao atualizar no Supabase: ' + error.message); return; }
+                } else {
+                    const { error } = await _supabase.from('receitas').insert([recipeData]);
+                    if (error) { alert('Erro ao salvar no Supabase: ' + error.message); return; }
                 }
                 await loadOfficialRecipes();
             } else {
-                recipeData.id = 'my_' + Date.now();
-                recipeData.isOfficial = false;
                 recipeData.ingredients = ingredientsList;
-                AppState.myRecipes.push(recipeData);
+                if (recipeId) {
+                    const idx = AppState.myRecipes.findIndex(r => r.id === recipeId);
+                    if (idx > -1) {
+                        recipeData.id = recipeId;
+                        recipeData.isOfficial = false;
+                        AppState.myRecipes[idx] = recipeData;
+                    }
+                } else {
+                    recipeData.id = 'my_' + Date.now();
+                    recipeData.isOfficial = false;
+                    AppState.myRecipes.push(recipeData);
+                }
                 await localforage.setItem('myRecipes', AppState.myRecipes);
             }
 
@@ -331,6 +511,141 @@
             closeRecipeForm();
             navigate(isOfficial ? 'officials' : 'mine');
             alert('Receita salva com sucesso!');
+        }
+
+        // --- AÇÕES: EDITAR, EXCLUIR, DUPLICAR, USAR OFICIAL ---
+        function openRecipeDetail(id) {
+            AppState.currentRecipeId = id;
+            const recipe = [...AppState.officialRecipes, ...AppState.myRecipes].find(r => r.id === id);
+            if(!recipe) return;
+            
+            const imgEl = document.getElementById('detail-img');
+            if(recipe.image) {
+                imgEl.src = recipe.image;
+                imgEl.style.display = 'block';
+            } else {
+                imgEl.style.display = 'none';
+            }
+
+            document.getElementById('detail-title').innerText = recipe.title;
+            document.getElementById('detail-category').innerText = recipe.category;
+            document.getElementById('detail-time').innerText = recipe.time || 'N/A';
+            document.getElementById('detail-yield').innerText = recipe.yield || 'N/A';
+            document.getElementById('detail-badge').className = 'badge ' + (recipe.isOfficial ? 'official' : 'personal');
+            document.getElementById('detail-badge').innerText = recipe.isOfficial ? '📚 OFICIAL' : '📝 MINHA';
+            
+            // Controle de visibilidade dos botões contextuais
+            const btnCopy = document.getElementById('btn-action-copy');
+            const btnEdit = document.getElementById('btn-action-edit');
+            const btnDelete = document.getElementById('btn-action-delete');
+
+            if (recipe.isOfficial) {
+                btnCopy.style.display = 'flex';
+                btnEdit.style.display = AppState.isAdmin ? 'flex' : 'none';
+                btnDelete.style.display = AppState.isAdmin ? 'flex' : 'none';
+            } else {
+                btnCopy.style.display = 'none';
+                btnEdit.style.display = 'flex';
+                btnDelete.style.display = 'flex';
+            }
+
+            let totalCost = 0;
+            let ingHtml = '';
+            if(Array.isArray(recipe.ingredients)) {
+                recipe.ingredients.forEach(i => {
+                    const costVal = parseFloat(i.cost) || 0;
+                    totalCost += costVal;
+                    ingHtml += `<li><b>${i.name}</b> - ${i.qty}${i.unit} <span style="color:var(--text-muted); font-size:0.8rem;">(R$ ${costVal.toFixed(2).replace('.', ',')})</span></li>`;
+                });
+            }
+            document.getElementById('detail-ingredients').innerHTML = ingHtml || '<li>Nenhum ingrediente informado.</li>';
+            document.getElementById('detail-cost').innerText = `R$ ${totalCost.toFixed(2).replace('.', ',')}`;
+            document.getElementById('detail-prep').innerText = recipe.prep;
+            navigate('detail');
+        }
+
+        function editCurrentRecipe() {
+            const recipe = [...AppState.officialRecipes, ...AppState.myRecipes].find(r => r.id === AppState.currentRecipeId);
+            if(!recipe) return;
+
+            if (recipe.isOfficial && !AppState.isAdmin) {
+                alert('Você só pode editar receitas oficiais se estiver logado como Admin nos Ajustes.');
+                return;
+            }
+
+            document.getElementById('form-recipe-id').value = recipe.id;
+            document.getElementById('form-is-official').value = recipe.isOfficial ? 'true' : 'false';
+            document.getElementById('form-title').innerText = recipe.isOfficial ? 'Editar Receita Oficial' : 'Editar Minha Receita';
+            document.getElementById('form-name').value = recipe.title;
+            document.getElementById('form-image-base64').value = recipe.image || '';
+            document.getElementById('form-category').value = recipe.category || 'Outros';
+            document.getElementById('form-time').value = recipe.time || '';
+            document.getElementById('form-yield').value = recipe.yield || '';
+            document.getElementById('form-prep').value = recipe.prep || '';
+            
+            document.getElementById('ingredients-container').innerHTML = '';
+            if(Array.isArray(recipe.ingredients)) {
+                recipe.ingredients.forEach(i => {
+                    addRecipeIngredientRow(i.id, i.qty);
+                });
+            }
+            if(recipe.ingredients.length === 0) addRecipeIngredientRow();
+            calculateTotalCost();
+            document.getElementById('modal-form').style.display = 'block';
+        }
+
+        async function duplicateCurrentRecipe() {
+            const recipe = [...AppState.officialRecipes, ...AppState.myRecipes].find(r => r.id === AppState.currentRecipeId);
+            if(!recipe) return;
+
+            const newRecipe = {
+                id: 'my_' + Date.now(),
+                title: recipe.title + ' (Cópia)',
+                image: recipe.image,
+                category: recipe.category,
+                time: recipe.time,
+                yield: recipe.yield,
+                isOfficial: false,
+                ingredients: JSON.parse(JSON.stringify(recipe.ingredients)),
+                prep: recipe.prep
+            };
+
+            AppState.myRecipes.push(newRecipe);
+            await localforage.setItem('myRecipes', AppState.myRecipes);
+            renderLists();
+            updateDashboard();
+            navigate('mine');
+            alert('Receita duplicada para "Minhas Receitas" com sucesso!');
+        }
+
+        async function useOfficialRecipeAsMine() {
+            await duplicateCurrentRecipe();
+        }
+
+        async function deleteCurrentRecipe() {
+            const recipe = [...AppState.officialRecipes, ...AppState.myRecipes].find(r => r.id === AppState.currentRecipeId);
+            if(!recipe) return;
+
+            if(!confirm(`Deseja realmente excluir a receita "${recipe.title}"?`)) return;
+
+            if (recipe.isOfficial) {
+                if (!AppState.isAdmin) {
+                    alert('Apenas o Administrador pode excluir receitas oficiais.');
+                    return;
+                }
+                const { error } = await _supabase.from('receitas').delete().eq('id', recipe.id);
+                if (error) { alert('Erro ao excluir no Supabase: ' + error.message); return; }
+                await loadOfficialRecipes();
+                navigate('officials');
+            } else {
+                AppState.myRecipes = AppState.myRecipes.filter(r => r.id !== recipe.id);
+                await localforage.setItem('myRecipes', AppState.myRecipes);
+                navigate('mine');
+            }
+
+            renderLists();
+            updateDashboard();
+            alert('Receita excluída com sucesso!');
         }
 
         function renderLists() {
@@ -401,51 +716,21 @@
             renderLists();
         }
 
-        function openRecipeDetail(id) {
-            const recipe = [...AppState.officialRecipes, ...AppState.myRecipes].find(r => r.id === id);
-            if(!recipe) return;
-            
-            const imgEl = document.getElementById('detail-img');
-            if(recipe.image) {
-                imgEl.src = recipe.image;
-                imgEl.style.display = 'block';
-            } else {
-                imgEl.style.display = 'none';
+        function openRecipeForm(isOfficial, isNew = true) {
+            if(isNew) {
+                document.getElementById('form-recipe-id').value = '';
+                document.getElementById('form-is-official').value = isOfficial ? 'true' : 'false';
+                document.getElementById('form-title').innerText = isOfficial ? 'Nova Receita Oficial (Supabase)' : 'Nova Receita Pessoal';
+                document.getElementById('form-name').value = '';
+                document.getElementById('form-image-file').value = '';
+                document.getElementById('form-image-base64').value = '';
+                document.getElementById('form-time').value = '';
+                document.getElementById('form-yield').value = '';
+                document.getElementById('form-prep').value = '';
+                document.getElementById('ingredients-container').innerHTML = '';
+                addRecipeIngredientRow();
+                calculateTotalCost();
             }
-
-            document.getElementById('detail-title').innerText = recipe.title;
-            document.getElementById('detail-category').innerText = recipe.category;
-            document.getElementById('detail-time').innerText = recipe.time || 'N/A';
-            document.getElementById('detail-yield').innerText = recipe.yield || 'N/A';
-            document.getElementById('detail-badge').className = 'badge ' + (recipe.isOfficial ? 'official' : 'personal');
-            document.getElementById('detail-badge').innerText = recipe.isOfficial ? '📚 OFICIAL' : '📝 MINHA';
-            
-            let totalCost = 0;
-            let ingHtml = '';
-            if(Array.isArray(recipe.ingredients)) {
-                recipe.ingredients.forEach(i => {
-                    const costVal = parseFloat(i.cost) || 0;
-                    totalCost += costVal;
-                    ingHtml += `<li><b>${i.name}</b> - ${i.qty} <span style="color:var(--text-muted); font-size:0.8rem;">(R$ ${costVal.toFixed(2).replace('.', ',')})</span></li>`;
-                });
-            }
-            document.getElementById('detail-ingredients').innerHTML = ingHtml || '<li>Nenhum ingrediente informado.</li>';
-            document.getElementById('detail-cost').innerText = `R$ ${totalCost.toFixed(2).replace('.', ',')}`;
-            document.getElementById('detail-prep').innerText = recipe.prep;
-            navigate('detail');
-        }
-
-        function openRecipeForm(isOfficial) {
-            document.getElementById('form-is-official').value = isOfficial ? 'true' : 'false';
-            document.getElementById('form-title').innerText = isOfficial ? 'Nova Receita Oficial (Supabase)' : 'Nova Receita Pessoal';
-            document.getElementById('form-name').value = '';
-            document.getElementById('form-image').value = '';
-            document.getElementById('form-time').value = '';
-            document.getElementById('form-yield').value = '';
-            document.getElementById('form-prep').value = '';
-            document.getElementById('ingredients-container').innerHTML = '';
-            addIngredientRow();
-            calculateTotalCost();
             document.getElementById('modal-form').style.display = 'block';
         }
 
